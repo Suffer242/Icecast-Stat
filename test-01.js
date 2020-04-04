@@ -98,6 +98,15 @@ async addChanges()
     try {
         var newState = await this.getNewState_Test();
         var changes = this.getChanges(newState);
+
+        if (newState.keys().length!=this.actualState.keys().length) throw new Error("diggg")
+
+        for (let newKeys of newState.keys())
+         if (!this.actualState.has(newKeys)) throw new Error("diggg")
+
+         for (let actualKeys of this.actualState.keys())
+         if (!newState.has(actualKeys)) throw new Error("diggg")
+
         this.HourData.push(changes);
     }
     catch (error)
