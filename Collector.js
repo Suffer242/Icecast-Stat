@@ -85,7 +85,7 @@ class Collector {
               if (global.gc) {
                 console.log("Call garbage collector");
                 global.gc();
-              }gur
+              }
              } )          
             this.ActualHour = Hour;
         }
