@@ -2,5 +2,10 @@
   "dependencies": {
     "node-fetch": "^2.6.0",
     "xml2js": "^0.4.23"
+  },
+  "scripts": {
+    "start": "node index",
+    "test": "node  --expose-gc  test"
   }
+
 }

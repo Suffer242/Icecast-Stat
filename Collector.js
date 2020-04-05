@@ -32,8 +32,9 @@ class Collector {
     this.GetStoreKey = ()=>x;
 
     var testdata = {};
+
     this.GetXml = function(mount) {
-        if (!testdata[mount])  testdata[mount] =  fs.readFileSync('./test_data/listclients-'+mount+'.xml', 'utf8');
+        if (!testdata[mount]) testdata[mount] =  fs.readFileSync('./test_data/listclients-'+mount+'.xml', 'utf8');
         return testdata[mount];
     }
 
@@ -63,12 +64,8 @@ class Collector {
 
 
   GetStoreKey() {
-   // return new Date().getHours();
-    return new Date().getMinutes();
+    return new Date().getHours();
   }
-
-
-
 
     /**
      * Дабавить изменения
@@ -84,7 +81,12 @@ class Collector {
             this.HourData = [];
             this.actualState = new Map();
             var fileName = this.config.logPath + date.toLocaleDateString()+'-'+this.ActualHour+".json"; 
-            writeFile(fileName, storeData);           
+             writeFile(fileName, storeData).then(()=>{
+              if (global.gc) {
+                console.log("Call garbage collector");
+                global.gc();
+              }gur
+             } )          
             this.ActualHour = Hour;
         }
 
@@ -99,7 +101,8 @@ class Collector {
             console.log(error);
         }
 
-        const used = process.memoryUsage(); let total = 0;
+        const used = process.memoryUsage();      
+        let total = 0;
         for (let key in used) total+=used[key] / 1024 / 1024 * 100;
         console.log(changes.timestamp+' +'+changes.connected.length+' -'+changes.disconnectedId.length+`\ttotal: ${Math.round(total) / 100} MB`);
 
@@ -110,9 +113,16 @@ class Collector {
     async XmlToJson(XMLtext) {
         var XMLdata = await parseXML(XMLtext);
 
-        let source =  XMLdata.icestats.source[0];
+        if (!XMLdata.icestats) return [];
 
-        if (source.listeners[0] == 0) return [];
+        let source = XMLdata.icestats.source[0];
+
+    
+                   ///
+        //if (source.listeners[0] == 0) return [];
+
+        if (!source.listener) return [];
+        
        
         return  source.listener.map(l =>({
             UserAgent: l.UserAgent && l.UserAgent[0],
@@ -143,7 +153,7 @@ class Collector {
           for (let mount of this.config.mounts) {
             var XMLtext = await this.GetXml(mount)
             var JsonData = await this.XmlToJson(XMLtext);
-            JsonData.forEach(l => newState.set(l.Id , { ...l , StartDate: new Date(stateTime-(l.Connected*1000)), mount} )); 
+            JsonData.forEach(l => newState.set(l.Id , { ...l , StatTime: new Date(stateTime-(l.Connected*1000)), mount} )); 
           }
         }
         
