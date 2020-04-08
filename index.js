@@ -16,7 +16,7 @@ var r = new Collector({
         mounts:['ekb.aac'],
         logPath:'g:\\log2\\',
         interval:2*1000,
-        autorizeData:{username:"timur", password:"Flvbybcnhfnjh728"}});  
+        autorizeData:{username:"timur", password:"XXXXXXXX"}});  
         
         r.run();
 

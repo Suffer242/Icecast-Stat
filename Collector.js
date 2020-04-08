@@ -12,6 +12,9 @@ class Collector {
   constructor(config) {
     this.config = config;
 
+    let {logPath} = this.config;
+    if (!fs.existsSync(logPath))  fs.mkdirSync(logPath);
+
     let {username,password} = this.config.autorizeData;
     this.authorizationString = Buffer.from(username + ":" + password).toString('base64');
 
@@ -48,9 +51,9 @@ class Collector {
   
     this.ActualHour = this.GetStoreKey();
 
-    for (var x = 0; x<100; x++) {
+    for (var x = 0; x<cnt; x++) {
         console.log("iteration "+x);
-        for (let index = 0; index < cnt; index++) {
+        for (let index = 0; index < 100; index++) {
            
             await this.addChanges()
         }
@@ -77,10 +80,14 @@ class Collector {
         let Hour =  this.GetStoreKey();
 
         if (Hour!=this.ActualHour) {
+           if (this.config.breakOnSave) clearInterval(this.sheduler);
+
             let storeData =  JSON.stringify(this.HourData);
             this.HourData = [];
             this.actualState = new Map();
             var fileName = this.config.logPath + date.toLocaleDateString()+'-'+this.ActualHour+".json"; 
+            
+           
              writeFile(fileName, storeData).then(()=>{
               if (global.gc) {
                 console.log("Call garbage collector");
@@ -88,6 +95,8 @@ class Collector {
               }
              } )          
             this.ActualHour = Hour;
+
+            
         }
 
         try {
@@ -104,7 +113,7 @@ class Collector {
         const used = process.memoryUsage();      
         let total = 0;
         for (let key in used) total+=used[key] / 1024 / 1024 * 100;
-        console.log(changes.timestamp+' +'+changes.connected.length+' -'+changes.disconnectedId.length+`\ttotal: ${Math.round(total) / 100} MB`);
+        console.log('IP:'+this.config.IP+' - '+changes.timestamp+' +'+changes.connected.length+' -'+changes.disconnectedId.length+`\ttotal: ${Math.round(total) / 100} MB`);
 
         
     }
