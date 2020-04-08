@@ -31,7 +31,7 @@ class Collector {
 
   async test(cnt) {
 
-    var x=0;
+    var x=cnt || 1;
     this.GetStoreKey = ()=>x;
 
     var testdata = {};
@@ -51,15 +51,14 @@ class Collector {
   
     this.ActualHour = this.GetStoreKey();
 
-    for (var x = 0; x<cnt; x++) {
         console.log("iteration "+x);
         for (let index = 0; index < 100; index++) {
            
             await this.addChanges()
         }
-
-        await new Promise((resolve)=>{ setTimeout(resolve,1000) })   
-    }
+  
+    x++;
+    await this.addChanges()
 
 
  
@@ -86,17 +85,13 @@ class Collector {
             this.HourData = [];
             this.actualState = new Map();
             var fileName = this.config.logPath + date.toLocaleDateString()+'-'+this.ActualHour+".json"; 
-            
-           
-             writeFile(fileName, storeData).then(()=>{
-              if (global.gc) {
-                console.log("Call garbage collector");
-                global.gc();
-              }
-             } )          
-            this.ActualHour = Hour;
 
-            
+              writeFile(fileName, storeData).then(()=>{         
+                if (this.config.breakOnSave) process.exit();
+                global.gc && global.gc();             
+              });
+
+            this.ActualHour = Hour;  
         }
 
         try {
@@ -162,7 +157,7 @@ class Collector {
           for (let mount of this.config.mounts) {
             var XMLtext = await this.GetXml(mount)
             var JsonData = await this.XmlToJson(XMLtext);
-            JsonData.forEach(l => newState.set(l.Id , { ...l , StatTime: new Date(stateTime-(l.Connected*1000)), mount} )); 
+            JsonData.forEach(({Connected, ...data}) => newState.set(data.Id , { ...data , StatTime: new Date(stateTime-(Connected*1000)), mount } )); 
           }
         }
         

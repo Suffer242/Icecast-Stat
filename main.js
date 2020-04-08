@@ -11,8 +11,6 @@ function readConfig(fileName) {
 if (cluster.isMaster) {
     console.log("Master");
 
-      
-
     //Список актуальных Серверов
     let actualServers = new Map();
 
@@ -30,7 +28,6 @@ if (cluster.isMaster) {
     //Обновить список актуальных серверов
     function UpdateServers() {
 
-      
         let servers = readConfig('servers.json');
 
         let newServers = servers.filter(server=>!actualServers.has(server));
@@ -75,12 +72,5 @@ else {
         breakOnSave:true,
         autorizeData:{username:"admin", password:"XXXXXXXX"}});
 
-      collector.test(1).then(()=>process.exit(),1000);
-       
- 
-   
-
-    //process.kill(process.pid);
-    //Вот вместо этого надо просто скопировать старый код
-   // setInterval(()=> console.log("worker for ", IP) ,2000 );     
+    collector.test();
 }
