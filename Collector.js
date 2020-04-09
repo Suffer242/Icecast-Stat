@@ -25,7 +25,6 @@ class Collector {
 
   run() {
     this.ActualHour = this.GetStoreKey();
-    //Собираем данные каждые 2 секунды
     this.sheduler = setInterval(()=>this.addChanges(),this.config.interval);
   }
 
@@ -51,7 +50,7 @@ class Collector {
   
     this.ActualHour = this.GetStoreKey();
 
-        console.log("iteration "+x);
+        console.log("test iteration");
         for (let index = 0; index < 100; index++) {
            
             await this.addChanges()
@@ -60,8 +59,6 @@ class Collector {
     x++;
     await this.addChanges()
 
-
- 
   }
 
 

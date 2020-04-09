@@ -1,0 +1,8 @@
+{ 
+    "mountRoot": "http://<IP>/admin/listclients?mount=/", 
+    "mounts":["silver128.mp3","silver48.mp3","silver64.aac"],
+    "logPath":"./log/<IP>/",
+    "interval":2000,
+    "breakOnSave":true,
+    "autorizeData":{"username":"admin", "password":"XXXXXX"}
+}

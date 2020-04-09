@@ -1,8 +1,9 @@
 const cluster = require('cluster');
 const Collector = require('./Collector')
+const fs = require('fs');
 
 function readConfig(fileName) {
-    let rawdata = require('fs').readFileSync('servers.json');
+    let rawdata = fs.readFileSync(fileName);
     return JSON.parse(rawdata);
 }
 
@@ -12,50 +13,57 @@ if (cluster.isMaster) {
     console.log("Master");
 
     //Список актуальных Серверов
-    let actualServers = new Map();
+    let actualServers = {};
 
     cluster.on('exit', (deadWorker, code, signal) => {
-        console.log('worker is dead:', deadWorker.isDead());
-        for (let [key,value] of actualServers.entries())
-         if (value==deadWorker) {
-            let worker = cluster.fork({IP:key}); 
-            actualServers.set(key,worker);
-            break;
-         }
+
+        console.log('worker is dead with code:',code);
+
+        let deadIP = Object.keys(actualServers).find(IP=>actualServers[IP]==deadWorker);
+        
+        if (deadIP) actualServers[deadIP] = cluster.fork({IP:deadIP}); 
       });
+
+      const serverConfigFileName  = 'servers.json';
+      
+      (()=>{
+        let fsWait = false;
+       fs.watch(serverConfigFileName, event => {
+
+        if (fsWait) return;
+        fsWait = setTimeout(() => {fsWait = false;}, 100);
+   
+        UpdateServers();
+
+       });
+      })();
 
 
     //Обновить список актуальных серверов
     function UpdateServers() {
+     
+        console.log("Config file Changed");
 
-        let servers = readConfig('servers.json');
+        let servers = readConfig(serverConfigFileName);
 
-        let newServers = servers.filter(server=>!actualServers.has(server));
+        let newServers = servers.filter(server=>!actualServers[server]);
         if (newServers.length) {
             console.log("news servers",newServers);
-            for (server of newServers) {    
-                //Стартуем рабочий процесс. Передаём в него IP серевера   
-                let worker = cluster.fork({IP:server});
-
-
-                actualServers.set(server,worker);
-            }       
+            for (server of newServers)  actualServers[server]=cluster.fork({IP:server});
         }
     
-        let diedServers = [...actualServers.keys()].filter(server=>servers.indexOf(server)==-1);
+        let diedServers = Object.keys(actualServers).filter(server=>servers.indexOf(server)==-1);
         if (diedServers.length) {
             console.log("died servers",diedServers);
             for (let diedServer of diedServers) {
-                process.kill(actualServers.get(diedServer).process.pid)
-                actualServers.delete(diedServer);
+                process.kill(actualServers[diedServer].process.pid)
+                delete actualServers[diedServer];
             }
         }
     }
 
     UpdateServers();
 
-    setInterval(UpdateServers,10000);
- 
 
 }
 else {
@@ -63,14 +71,14 @@ else {
     let IP = process.env.IP;
     console.log("start process for "+IP );
 
-    var collector = new Collector({ 
-        mountRoot:`http://${IP}/admin/listclients?mount=/`, 
-        mounts:['silver128.mp3','silver48.mp3','silver64.aac'],
-        logPath:`./log/${IP}/`,
-        interval:2*1000,
-        IP,
-        breakOnSave:true,
-        autorizeData:{username:"admin", password:"XXXXXXXX"}});
+    let config = readConfig("config.json");
 
-    collector.test();
+    config.mountRoot =  config.mountRoot.replace(/<IP>/g,IP);
+    config.logPath =  config.logPath.replace(/<IP>/g,IP);
+   
+    var collector = new Collector({...config,IP}); 
+
+   if (process.argv[2] && process.argv[2]=="test")  collector.test();
+    else 
+   collector.run();
 }

@@ -5,7 +5,7 @@
   },
   "scripts": {
     "start": "node --expose-gc  main",
-    "test": "node  --expose-gc  test"
+    "test": "node  --expose-gc  main test"
   }
 
 }
