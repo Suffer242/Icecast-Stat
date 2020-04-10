@@ -13,7 +13,7 @@ class Collector {
     this.config = config;
 
     let {logPath} = this.config;
-    if (!fs.existsSync(logPath))  fs.mkdirSync(logPath);
+    if (!fs.existsSync(logPath))  fs.mkdirSync(logPath, { recursive: true });
 
     let {username,password} = this.config.autorizeData;
     this.authorizationString = Buffer.from(username + ":" + password).toString('base64');
@@ -33,19 +33,29 @@ class Collector {
     var x=cnt || 1;
     this.GetStoreKey = ()=>x;
 
-    var testdata = {};
-
     this.GetXml = function(mount) {
-        if (!testdata[mount]) testdata[mount] =  fs.readFileSync('./test_data/listclients-'+mount+'.xml', 'utf8');
-        return testdata[mount];
+      return  fs.readFileSync('./test_data/bigdata.xml', 'utf8');
     }
 
-    var testId = 0;
+    let getRandomInt = (max) =>  Math.floor(Math.random() * Math.floor(max));
+
+    var testId = 100000;
     var XmlToJson = this.XmlToJson;
     this.XmlToJson = async function(xml) {
        var JsonData = await XmlToJson(xml);
-       JsonData.forEach(item=>item.Id=++testId); 
+
+
+       let i=0;
+       JsonData.forEach(item=>item.Id=++i); 
+     
+       if (JsonData.length>100 && true)
+        for (let i=0;i<1+getRandomInt(1);i++) {
+         var n = getRandomInt(JsonData.length);
+         JsonData[n].Id=++testId;
+        }
+       
        return JsonData;
+
     }
   
     this.ActualHour = this.GetStoreKey();
@@ -105,7 +115,7 @@ class Collector {
         const used = process.memoryUsage();      
         let total = 0;
         for (let key in used) total+=used[key] / 1024 / 1024 * 100;
-        console.log('IP:'+this.config.IP+' - '+changes.timestamp+' +'+changes.connected.length+' -'+changes.disconnectedId.length+`\ttotal: ${Math.round(total) / 100} MB`);
+        console.log('IP:'+this.config.IP+' - '+changes.timestamp + ' total='+ this.actualState.size + ' Stages:'+this.HourData.length+ ' +'+changes.connected.length+' -'+changes.disconnectedId.length+`\ttotal: ${Math.round(total) / 100} MB`);
 
         
     }
@@ -113,6 +123,9 @@ class Collector {
 
     async XmlToJson(XMLtext) {
         var XMLdata = await parseXML(XMLtext);
+
+      XMLdata = JSON.parse(JSON.stringify(XMLdata));  //без этого жрёт память
+    
 
         if (!XMLdata.icestats) return [];
 
