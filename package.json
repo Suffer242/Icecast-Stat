@@ -1,8 +1,6 @@
 {
   "dependencies": {
-    "fast-xml-parser": "^3.16.0",
-    "node-fetch": "^2.6.0",
-    "xml2js": "^0.4.23"
+    "node-fetch": "^2.6.0"
   },
   "scripts": {
     "start": "node --expose-gc  main",

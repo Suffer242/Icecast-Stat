@@ -69,7 +69,7 @@ if (cluster.isMaster) {
 else {
     //Рабочий процесс. Получает IP нужного сервера через  process.env.IP
     let IP = process.env.IP;
-    console.log("start process for "+IP );
+    console.log(new Date(),"start process for "+IP );
 
     let config = readConfig("config.json");
 

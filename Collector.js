@@ -1,20 +1,15 @@
 'use strict'
 
 const fetch = require('node-fetch');
-const util = require('util');
 const fs = require("fs");
-const parseXML = util.promisify( require('xml2js').parseString );
-const writeFile = util.promisify(fs.writeFile);
-
-
+const parser = require('./brute-get-listeners');
 class Collector {
 
   constructor(config) {
     this.config = config;
 
     let {logPath} = this.config;
-    if (!fs.existsSync(logPath))  fs.mkdirSync(logPath, { recursive: true });
-
+    
     let {username,password} = this.config.autorizeData;
     this.authorizationString = Buffer.from(username + ":" + password).toString('base64');
 
@@ -25,6 +20,7 @@ class Collector {
 
   run() {
     this.ActualHour = this.GetStoreKey();
+    this.addChanges(); //init
     this.sheduler = setInterval(()=>this.addChanges(),this.config.interval);
   }
 
@@ -34,22 +30,22 @@ class Collector {
     this.GetStoreKey = ()=>x;
 
     this.GetXml = function(mount) {
-      return  fs.readFileSync('./test_data/bigdata.xml', 'utf8');
+      return   fs.readFileSync('./test_data/listclients-'+mount+'.xml', 'utf8'); 
     }
 
     let getRandomInt = (max) =>  Math.floor(Math.random() * Math.floor(max));
 
     var testId = 100000;
     var XmlToJson = this.XmlToJson;
-    this.XmlToJson = async function(xml) {
-       var JsonData = await XmlToJson(xml);
+    this.XmlToJson = function(xml) {
+       var JsonData = XmlToJson(xml);
 
 
        let i=0;
        JsonData.forEach(item=>item.Id=++i); 
      
        if (JsonData.length>100 && true)
-        for (let i=0;i<1+getRandomInt(1);i++) {
+        for (let i=0;i<10+getRandomInt(10);i++) {
          var n = getRandomInt(JsonData.length);
          JsonData[n].Id=++testId;
         }
@@ -61,7 +57,7 @@ class Collector {
     this.ActualHour = this.GetStoreKey();
 
         console.log("test iteration");
-        for (let index = 0; index < 100; index++) {
+        for (let index = 0; index < 60*60/2; index++) {
            
             await this.addChanges()
         }
@@ -86,19 +82,28 @@ class Collector {
         let Hour =  this.GetStoreKey();
 
         if (Hour!=this.ActualHour) {
-           if (this.config.breakOnSave) clearInterval(this.sheduler);
 
-            let storeData =  JSON.stringify(this.HourData);
+            try { 
+             let storeData =  JSON.stringify(this.HourData);
+             let {logPath} = this.config;
+             let fileName = logPath + date.toLocaleDateString()+'-'+this.ActualHour+".json"; 
+             if (!fs.existsSync(logPath))  fs.mkdirSync(logPath, { recursive: true });
+             fs.writeFileSync(fileName, storeData); 
+            }
+            catch (error)
+            {
+                console.log(error);
+            }
+
+            if (this.config.breakOnSave) {
+              clearInterval(this.sheduler);
+              process.exit();
+            }
+
+            global.gc && global.gc();                      
+            this.ActualHour = Hour;  
             this.HourData = [];
             this.actualState = new Map();
-            var fileName = this.config.logPath + date.toLocaleDateString()+'-'+this.ActualHour+".json"; 
-
-              writeFile(fileName, storeData).then(()=>{         
-                if (this.config.breakOnSave) process.exit();
-                global.gc && global.gc();             
-              });
-
-            this.ActualHour = Hour;  
         }
 
         try {
@@ -113,38 +118,18 @@ class Collector {
         }
 
         const used = process.memoryUsage();      
-        let total = 0;
-        for (let key in used) total+=used[key] / 1024 / 1024 * 100;
+    
+        let total= (used.rss + used.heapTotal + used.external) / 1024 / 1024 * 100;
+
         console.log('IP:'+this.config.IP+' - '+changes.timestamp + ' total='+ this.actualState.size + ' Stages:'+this.HourData.length+ ' +'+changes.connected.length+' -'+changes.disconnectedId.length+`\ttotal: ${Math.round(total) / 100} MB`);
 
         
     }
 
 
-    async XmlToJson(XMLtext) {
-        var XMLdata = await parseXML(XMLtext);
-
-      XMLdata = JSON.parse(JSON.stringify(XMLdata));  //без этого жрёт память
-    
-
-        if (!XMLdata.icestats) return [];
-
-        let source = XMLdata.icestats.source[0];
-
-    
-                   ///
-        //if (source.listeners[0] == 0) return [];
-
-        if (!source.listener) return [];
-        
-       
-        return  source.listener.map(l =>({
-            UserAgent: l.UserAgent && l.UserAgent[0],
-            IP: l.IP[0],
-            Id: +l.ID[0],
-            Connected: l.Connected[0]
-          }))
-    
+    XmlToJson(XMLtext) {
+      let listeners = parser(XMLtext)
+      return listeners.map(l =>({UserAgent: l["UserAgent"],IP: l.IP,Id: l.ID,Connected: l.Connected}));
     }
     
 
@@ -166,7 +151,7 @@ class Collector {
         {
           for (let mount of this.config.mounts) {
             var XMLtext = await this.GetXml(mount)
-            var JsonData = await this.XmlToJson(XMLtext);
+            var JsonData = this.XmlToJson(XMLtext);
             JsonData.forEach(({Connected, ...data}) => newState.set(data.Id , { ...data , StatTime: new Date(stateTime-(Connected*1000)), mount } )); 
           }
         }
@@ -194,8 +179,8 @@ class Collector {
         }
     
         var connected = [];
-        for (let listener of newState.entries())
-        if (!this.actualState.has(listener[0]))  connected.push(listener[1]);
+        for (let [key,value] of newState.entries())
+        if (!this.actualState.has(key))  connected.push(value);
 
         return {timestamp:new Date() , initState, disconnectedId,connected}; 
     }
